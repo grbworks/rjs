@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
-  <title>Минимальный хитрый раннер со STOP (рабочий)</title>
+  <title>HTML/JS раннер с STOP и window.name</title>
   <meta name="viewport" content="width=device-width,initial-scale=1.0">
   <style>
     * { box-sizing: border-box; }
@@ -63,20 +63,23 @@
       font-size: 12px;
       color: #9ca3af;
     }
+    code { font-family: Menlo, Monaco, Consolas, monospace; }
   </style>
 </head>
 <body>
-  <header>Минимальный раннер: перезаписывает страницу и оставляет STOP</header>
+  <header>HTML/JS раннер: перезаписывает страницу и оставляет STOP</header>
   <main>
     <div class="hint">
-      Вставь HTML+JS ниже и нажми «Запустить». Страница заменится твоим кодом,
-      но в правом нижнем углу появится кнопка STOP, которая вернёт тебя в этот раннер.
+      Вставь ниже свой <strong>HTML + JS</strong> и нажми <b>«Запустить»</b>.<br>
+      Страница станет ровно этим HTML. В правом нижнем углу всегда будет кнопка
+      <b>STOP</b>, которая вернёт тебя в этот раннер.<br>
+      Код сохраняется в <code>window.name</code>, так что после STOP он восстановится.
     </div>
     <textarea id="code" spellcheck="false"><!DOCTYPE html>
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
-  <title>Тест минимального раннера</title>
+  <title>Тест раннера</title>
 </head>
 <body style="font-family:-apple-system,system-ui,sans-serif;padding:16px">
   <h1>Мой код</h1>
@@ -91,7 +94,7 @@
 
   <script>
     (function () {
-      // один раз сохраняем исходный HTML раннера
+      // Сохраняем исходный HTML раннера один раз
       if (!window.__RUNNER_ORIGINAL_HTML__) {
         window.__RUNNER_ORIGINAL_HTML__ = document.documentElement.outerHTML;
       }
@@ -99,12 +102,20 @@
       var textarea = document.getElementById('code');
       var runBtn   = document.getElementById('runBtn');
 
-      // если раньше уже запускали код — восстановим
-      if (window.__RUNNER_LAST_CODE__) {
-        try { textarea.value = window.__RUNNER_LAST_CODE__; } catch (e) {}
+      // Пытаемся восстановить код из window.name или из __RUNNER_LAST_CODE__
+      try {
+        if (window.name) {
+          var state = JSON.parse(window.name);
+          if (state && typeof state.userCode === 'string') {
+            textarea.value = state.userCode;
+          }
+        } else if (window.__RUNNER_LAST_CODE__) {
+          textarea.value = window.__RUNNER_LAST_CODE__;
+        }
+      } catch (e) {
+        // если в window.name мусор — просто игнорируем
       }
 
-      // ставим кнопку STOP на текущей странице
       function installStopButton() {
         if (document.getElementById('__runner_stop__')) return;
 
@@ -152,16 +163,19 @@
         }
       }
 
-      // показываем STOP и в самом раннере
+      // Показываем STOP в самом раннере
       installStopButton();
 
       runBtn.addEventListener('click', function () {
         var userCode = textarea.value || '<h1>Пусто</h1>';
         window.__RUNNER_LAST_CODE__ = userCode;
 
-        // текст функции, чтобы вставить её в новый документ
+        // Сохраняем состояние в window.name
+        try {
+          window.name = JSON.stringify({ userCode: userCode });
+        } catch (e) {}
+
         var stopFnSrc = '(' + installStopButton.toString() + ')();';
-        // чтобы не сломать </script> внутри
         stopFnSrc = stopFnSrc.replace(/<\/script/gi, '<\\/script');
 
         document.open();
