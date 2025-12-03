@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
-  <title>HTML/JS раннер с STOP и window.name (фикс)</title>
+  <title>HTML/JS раннер с RUN/STOP и очисткой</title>
   <meta name="viewport" content="width=device-width,initial-scale=1.0">
   <style>
     * { box-sizing: border-box; }
@@ -42,6 +42,16 @@
       font-size: 12px;
       outline: none;
     }
+    .controls {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .hint {
+      font-size: 12px;
+      color: #9ca3af;
+    }
     button {
       padding: 6px 10px;
       font-size: 13px;
@@ -54,26 +64,21 @@
     button:active {
       transform: scale(0.97);
     }
-    .controls {
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
+    .pill {
+      border-radius: 999px;
     }
-    .hint {
-      font-size: 12px;
-      color: #9ca3af;
-    }
-    code { font-family: Menlo, Monaco, Consolas, monospace; }
   </style>
 </head>
 <body>
-  <header>HTML/JS раннер: перезаписывает страницу и оставляет STOP</header>
+  <header>HTML/JS раннер: RUN/STOP + очистка</header>
   <main>
     <div class="hint">
-      Вставь ниже свой <strong>HTML + JS</strong> и нажми <b>«Запустить»</b>.<br>
-      Страница станет ровно этим HTML. В правом нижнем углу всегда будет кнопка
-      <b>STOP</b>, которая вернёт тебя в этот раннер.<br>
-      Код сохраняется в <code>window.name</code>, так что после STOP он восстановится.
+      Вставь ниже свой <strong>HTML + JS</strong>.<br>
+      Зелёная кнопка <b>▶ Запустить</b> в правом нижнем углу перезапишет страницу твоим кодом.<br>
+      В режиме запущенного кода появится красная <b>⏹ STOP</b>, которая вернёт тебя в этот раннер.
+    </div>
+    <div class="controls">
+      <button id="clearBtn">Очистить поле</button>
     </div>
     <textarea id="code" spellcheck="false"><!DOCTYPE html>
 <html lang="ru">
@@ -87,9 +92,6 @@
   <button onclick="alert('JS работает!')">Проверить JS</button>
 </body>
 </html></textarea>
-    <div class="controls">
-      <button id="runBtn">Запустить</button>
-    </div>
   </main>
 
   <script>
@@ -100,9 +102,9 @@
       }
 
       var textarea = document.getElementById('code');
-      var runBtn   = document.getElementById('runBtn');
+      var clearBtn = document.getElementById('clearBtn');
 
-      // Пытаемся восстановить код из window.name или из __RUNNER_LAST_CODE__
+      // Восстановление кода из window.name или из __RUNNER_LAST_CODE__
       try {
         if (window.name) {
           var state = JSON.parse(window.name);
@@ -113,12 +115,71 @@
           textarea.value = window.__RUNNER_LAST_CODE__;
         }
       } catch (e) {
-        // если в window.name мусор — просто игнорируем
+        // если в window.name мусор — игнорируем
       }
 
-      function installStopButton() {
-        if (document.getElementById('__runner_stop__')) return;
+      clearBtn.addEventListener('click', function () {
+        textarea.value = '';
+      });
 
+      // Плавающая зелёная кнопка "Запустить" (только в раннере)
+      function installRunButton() {
+        if (document.getElementById('__runner_action_run__')) return;
+
+        function add() {
+          if (!document.body) {
+            setTimeout(add, 50);
+            return;
+          }
+          if (document.getElementById('__runner_action_run__')) return;
+
+          var b = document.createElement('button');
+          b.id = '__runner_action_run__';
+          b.textContent = '▶ Запустить';
+          var s = b.style;
+          s.position = 'fixed';
+          s.right = '8px';
+          s.bottom = '8px';
+          s.zIndex = '999999';
+          s.padding = '8px 14px';
+          s.fontSize = '13px';
+          s.borderRadius = '999px';
+          s.border = '1px solid #22c55e';
+          s.background = '#16a34a';
+          s.color = '#ecfdf5';
+          s.cursor = 'pointer';
+          s.boxShadow = '0 4px 10px rgba(0,0,0,0.6)';
+
+          b.onclick = function () {
+            var userCode = textarea.value || '<h1>Пусто</h1>';
+            window.__RUNNER_LAST_CODE__ = userCode;
+
+            // сохраняем состояние в window.name
+            try {
+              window.name = JSON.stringify({ userCode: userCode });
+            } catch (e) {}
+
+            // Перезаписываем документ кодом пользователя
+            document.open();
+            document.write(userCode);
+            document.close();
+
+            // Ставим красную кнопку STOP в новом документе
+            installStopButtonInUserPage();
+          };
+
+          document.body.appendChild(b);
+        }
+
+        if (document.readyState === 'loading') {
+          document.addEventListener('DOMContentLoaded', add);
+        } else {
+          add();
+        }
+      }
+
+      // Красная кнопка STOP в документе пользователя
+      function installStopButtonInUserPage() {
         function add() {
           if (!document.body) {
             setTimeout(add, 50);
@@ -134,22 +195,23 @@
           s.right = '8px';
           s.bottom = '8px';
           s.zIndex = '999999';
-          s.padding = '6px 10px';
-          s.fontSize = '12px';
+          s.padding = '8px 14px';
+          s.fontSize = '13px';
           s.borderRadius = '999px';
           s.border = '1px solid #f97373';
-          s.background = 'rgba(15,23,42,0.95)';
+          s.background = '#b91c1c';
           s.color = '#fee2e2';
           s.cursor = 'pointer';
           s.boxShadow = '0 4px 10px rgba(0,0,0,0.6)';
+
           b.onclick = function () {
             try {
               if (window.__RUNNER_ORIGINAL_HTML__) {
                 document.open();
                 document.write(window.__RUNNER_ORIGINAL_HTML__);
                 document.close();
-                // после восстановления раннера — снова поставим STOP
-                installStopButton();
+                // после возврата в раннер — снова ставим зелёную кнопку
+                installRunButton();
               } else {
                 location.reload();
               }
@@ -157,36 +219,15 @@
               location.reload();
             }
           };
+
           document.body.appendChild(b);
         }
 
-        if (document.readyState === 'loading') {
-          document.addEventListener('DOMContentLoaded', add);
-        } else {
-          add();
-        }
+        add();
       }
 
-      // Показываем STOP в самом раннере
-      installStopButton();
-
-      runBtn.addEventListener('click', function () {
-        var userCode = textarea.value || '<h1>Пусто</h1>';
-        window.__RUNNER_LAST_CODE__ = userCode;
-
-        // Сохраняем состояние в window.name
-        try {
-          window.name = JSON.stringify({ userCode: userCode });
-        } catch (e) {}
-
-        // Перезаписываем документ кодом пользователя
-        document.open();
-        document.write(userCode);
-        document.close();
-
-        // И сразу же ставим STOP уже в НОВОМ документе
-        installStopButton();
-      });
+      // В режиме раннера сразу ставим зелёную кнопку
+      installRunButton();
     })();
   </script>
 </body>
