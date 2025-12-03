@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
-  <title>HTML/JS раннер с STOP и window.name</title>
+  <title>HTML/JS раннер с STOP и window.name (фикс)</title>
   <meta name="viewport" content="width=device-width,initial-scale=1.0">
   <style>
     * { box-sizing: border-box; }
@@ -124,6 +124,8 @@
             setTimeout(add, 50);
             return;
           }
+          if (document.getElementById('__runner_stop__')) return;
+
           var b = document.createElement('button');
           b.id = '__runner_stop__';
           b.textContent = '⏹ STOP';
@@ -146,6 +148,8 @@
                 document.open();
                 document.write(window.__RUNNER_ORIGINAL_HTML__);
                 document.close();
+                // после восстановления раннера — снова поставим STOP
+                installStopButton();
               } else {
                 location.reload();
               }
@@ -175,13 +179,13 @@
           window.name = JSON.stringify({ userCode: userCode });
         } catch (e) {}
 
-        var stopFnSrc = '(' + installStopButton.toString() + ')();';
-        stopFnSrc = stopFnSrc.replace(/<\/script/gi, '<\\/script');
-
+        // Перезаписываем документ кодом пользователя
         document.open();
         document.write(userCode);
-        document.write('<script>' + stopFnSrc + '<\\/script>');
         document.close();
+
+        // И сразу же ставим STOP уже в НОВОМ документе
+        installStopButton();
       });
     })();
   </script>
