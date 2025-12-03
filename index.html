@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Минимальный хитрый раннер со STOP (рабочий)</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, system-ui, sans-serif;
+      background: #111827;
+      color: #e5e7eb;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    header {
+      padding: 8px 12px;
+      background: #020617;
+      border-bottom: 1px solid #1f2937;
+      font-size: 14px;
+    }
+    main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      padding: 8px;
+      gap: 8px;
+    }
+    textarea {
+      flex: 1;
+      width: 100%;
+      min-height: 40vh;
+      resize: none;
+      border-radius: 4px;
+      border: 1px solid #374151;
+      background: #020617;
+      color: #e5e7eb;
+      padding: 8px;
+      font-family: Menlo, Monaco, Consolas, monospace;
+      font-size: 12px;
+      outline: none;
+    }
+    button {
+      padding: 6px 10px;
+      font-size: 13px;
+      border-radius: 999px;
+      border: 1px solid #4b5563;
+      background: #111827;
+      color: #e5e7eb;
+      cursor: pointer;
+    }
+    button:active {
+      transform: scale(0.97);
+    }
+    .controls {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .hint {
+      font-size: 12px;
+      color: #9ca3af;
+    }
+  </style>
+</head>
+<body>
+  <header>Минимальный раннер: перезаписывает страницу и оставляет STOP</header>
+  <main>
+    <div class="hint">
+      Вставь HTML+JS ниже и нажми «Запустить». Страница заменится твоим кодом,
+      но в правом нижнем углу появится кнопка STOP, которая вернёт тебя в этот раннер.
+    </div>
+    <textarea id="code" spellcheck="false"><!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Тест минимального раннера</title>
+</head>
+<body style="font-family:-apple-system,system-ui,sans-serif;padding:16px">
+  <h1>Мой код</h1>
+  <p>Если ты это видишь — страница перезаписана твоим HTML.</p>
+  <button onclick="alert('JS работает!')">Проверить JS</button>
+</body>
+</html></textarea>
+    <div class="controls">
+      <button id="runBtn">Запустить</button>
+    </div>
+  </main>
+
+  <script>
+    (function () {
+      // один раз сохраняем исходный HTML раннера
+      if (!window.__RUNNER_ORIGINAL_HTML__) {
+        window.__RUNNER_ORIGINAL_HTML__ = document.documentElement.outerHTML;
+      }
+
+      var textarea = document.getElementById('code');
+      var runBtn   = document.getElementById('runBtn');
+
+      // если раньше уже запускали код — восстановим
+      if (window.__RUNNER_LAST_CODE__) {
+        try { textarea.value = window.__RUNNER_LAST_CODE__; } catch (e) {}
+      }
+
+      // ставим кнопку STOP на текущей странице
+      function installStopButton() {
+        if (document.getElementById('__runner_stop__')) return;
+
+        function add() {
+          if (!document.body) {
+            setTimeout(add, 50);
+            return;
+          }
+          var b = document.createElement('button');
+          b.id = '__runner_stop__';
+          b.textContent = '⏹ STOP';
+          var s = b.style;
+          s.position = 'fixed';
+          s.right = '8px';
+          s.bottom = '8px';
+          s.zIndex = '999999';
+          s.padding = '6px 10px';
+          s.fontSize = '12px';
+          s.borderRadius = '999px';
+          s.border = '1px solid #f97373';
+          s.background = 'rgba(15,23,42,0.95)';
+          s.color = '#fee2e2';
+          s.cursor = 'pointer';
+          s.boxShadow = '0 4px 10px rgba(0,0,0,0.6)';
+          b.onclick = function () {
+            try {
+              if (window.__RUNNER_ORIGINAL_HTML__) {
+                document.open();
+                document.write(window.__RUNNER_ORIGINAL_HTML__);
+                document.close();
+              } else {
+                location.reload();
+              }
+            } catch (e) {
+              location.reload();
+            }
+          };
+          document.body.appendChild(b);
+        }
+
+        if (document.readyState === 'loading') {
+          document.addEventListener('DOMContentLoaded', add);
+        } else {
+          add();
+        }
+      }
+
+      // показываем STOP и в самом раннере
+      installStopButton();
+
+      runBtn.addEventListener('click', function () {
+        var userCode = textarea.value || '<h1>Пусто</h1>';
+        window.__RUNNER_LAST_CODE__ = userCode;
+
+        // текст функции, чтобы вставить её в новый документ
+        var stopFnSrc = '(' + installStopButton.toString() + ')();';
+        // чтобы не сломать </script> внутри
+        stopFnSrc = stopFnSrc.replace(/<\/script/gi, '<\\/script');
+
+        document.open();
+        document.write(userCode);
+        document.write('<script>' + stopFnSrc + '<\\/script>');
+        document.close();
+      });
+    })();
+  </script>
+</body>
+</html>
